@@ -1,3 +1,5 @@
+use core::ptr::write_volatile;
+
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
@@ -71,10 +73,16 @@ impl Writer {
                 let col = self.column_position;
                 let cc = self.color_code;
 
-                self.buffer.chars[row][col] = ScreenChar {
-                    char: byte,
-                    color_code: cc,
-                };
+                unsafe {
+                    write_volatile(
+                        &mut (*self.buffer).chars[row][col],
+                        ScreenChar {
+                            char: byte,
+                            color_code: cc,
+                        },
+                    );
+                }
+
                 self.column_position += 1;
             }
         }
