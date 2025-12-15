@@ -22,7 +22,6 @@ static MULTIBOOT2_HEADER: [u32; 6] = {
     [magic, arch, len, csum, 0, 8]
 };
 
-#[used]
 static HELLO: &[u8] = b"Hello World!";
 
 #[unsafe(no_mangle)]
