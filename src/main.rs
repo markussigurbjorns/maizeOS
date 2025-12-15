@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PanicInfo;
+use core::{panic::PanicInfo, ptr};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -14,19 +14,24 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[unsafe(link_section = ".multiboot2")]
 #[used]
-static MULTIBOOT2_HEADER: [u32; 8] = [0xe85250d6, 0, 32, !(0xe85250d6 + 0 + 32) + 1, 0, 0, 0, 0];
+static MULTIBOOT2_HEADER: [u32; 6] = {
+    let magic: u32 = 0xe85250d6;
+    let arch: u32 = 0;
+    let len: u32 = 24;
+    let csum: u32 = 0u32.wrapping_sub(magic.wrapping_add(arch).wrapping_add(len));
+    [magic, arch, len, csum, 0, 8]
+};
 
 #[used]
 static HELLO: &[u8] = b"Hello World!";
 
 #[unsafe(no_mangle)]
-pub extern "C" fn _start() -> ! {
-    let vga_buffer = 0xb8000 as *mut u8;
+pub extern "C" fn _start(_multiboot_info: usize) -> ! {
+    let vga = 0xb8000 as *mut u16;
 
-    for (i, &byte) in HELLO.iter().enumerate() {
+    for (i, &ch) in HELLO.iter().enumerate() {
         unsafe {
-            *vga_buffer.offset(i as isize * 2) = byte;
-            *vga_buffer.offset(i as isize * 2 + 1) = 0xb;
+            ptr::write_volatile(vga.add(i), (0x0Bu16 << 8) | (ch as u16));
         }
     }
 
