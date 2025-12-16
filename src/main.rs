@@ -2,6 +2,7 @@
 #![no_main]
 
 mod vga_buffer;
+mod sync;
 
 use core::{panic::PanicInfo, ptr};
 
