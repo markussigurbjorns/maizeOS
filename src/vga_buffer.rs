@@ -1,17 +1,21 @@
-use core::ptr::write_volatile;
+use core::fmt;
+use core::ptr::{read_volatile, write_volatile};
+
+use crate::sync::lazy::Lazy;
+use crate::sync::spinlock::SpinLock;
 
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
-// TODO: this need to be put in a lock
+pub static WRITER: Lazy<SpinLock<Writer>> = Lazy::new(|| {
+    SpinLock::new(Writer {
+        column_position: 0,
+        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+    })
+});
 
-//pub static WRITER: Writer = Writer {
-//    column_position: 0,
-//    color_code: ColorCode::new(Color::Yellow, Color::Black),
-//    buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-//};
-
-#[warn(dead_code)]
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Color {
@@ -98,6 +102,36 @@ impl Writer {
     }
 
     fn new_line(&mut self) {
-        todo!()
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let ch = unsafe { read_volatile(&(*self.buffer).chars[row][col]) };
+                unsafe { write_volatile(&mut (*self.buffer).chars[row - 1][col], ch) };
+            }
+        }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
     }
+
+    fn clear_row(&mut self, row: usize) {
+        let blank = ScreenChar {
+            char: b' ',
+            color_code: self.color_code,
+        };
+        for col in 0..BUFFER_WIDTH {
+            unsafe { write_volatile(&mut (*self.buffer).chars[row][col], blank) };
+        }
+    }
+}
+
+impl fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_string(s);
+        Ok(())
+    }
+}
+
+pub fn print(s: &str) {
+    let lock = WRITER.get();
+    let mut w = lock.lock();
+    w.write_string(s);
 }

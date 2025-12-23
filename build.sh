@@ -5,7 +5,8 @@ cargo clean
 rm -rf iso
 
 #build
-cargo build --target target.json -Z build-std=core --release
+RUSTFLAGS="-C link-arg=-Tlinker.ld" \
+    cargo build --target target.json -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem --release
 
 #post
 mkdir -p iso/boot/grub

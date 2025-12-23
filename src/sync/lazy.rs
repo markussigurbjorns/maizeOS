@@ -36,6 +36,7 @@ impl<T, F: FnOnce() -> T> Lazy<T, F> {
             unsafe { (*self.value.get()).write(value) };
             self.state.store(2, Ordering::Release);
         } else {
+            // someone else is initializing; wait
             while self.state.load(Ordering::Acquire) != 2 {
                 core::hint::spin_loop();
             }
