@@ -5,6 +5,7 @@
 .code32
 _start:
     cli
+    mov dword ptr [mb2_info_ptr], ebx
     mov esp, offset stack_top
     mov ebp, esp
 
@@ -71,6 +72,7 @@ long_mode_entry:
     mov gs, ax
     lea rsp, [stack_top]
 
+    mov edi, dword ptr [mb2_info_ptr]
     call rust_main
 
 1:
@@ -90,6 +92,10 @@ gdt64_ptr:
     .long gdt64
 
 .section .bss
+.align 4
+mb2_info_ptr:
+    .skip 4
+
 .align 4096
 pml4_table:
     .skip 4096

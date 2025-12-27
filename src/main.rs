@@ -34,7 +34,7 @@ static MULTIBOOT2_HEADER: Multiboot2Header = Multiboot2Header({
 });
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_main() -> ! {
+pub extern "C" fn rust_main(mb2_info: u32) -> ! {
     print("Hello, World\n");
     print("MAGGI");
     loop {
