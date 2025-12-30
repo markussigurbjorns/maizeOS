@@ -3,6 +3,7 @@
 
 mod gdt;
 mod idt;
+mod mb2;
 mod serial;
 mod sync;
 mod vga_buffer;
@@ -110,6 +111,7 @@ pub extern "C" fn rust_main(mb2_info: u32) -> ! {
     serial::init();
     serial_println!("maizeOS: entered rust_main");
     serial_println!("mb2_info ptr = {:#x}", mb2_info);
+    mb2::dump(mb2_info as usize);
 
     unsafe extern "C" {
         static stack_top: u8;
