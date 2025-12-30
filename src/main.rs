@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod gdt;
 mod idt;
 mod serial;
 mod sync;
@@ -42,6 +43,7 @@ pub extern "C" fn rust_exception_handler(vector: u64, error: u64, frame_rip_ptr:
     match vector {
         3 => serial_println!("#BP Breakpoint"),
         6 => serial_println!("#UD Invalid Opcode"),
+        8 => serial_println!("#DF Double Fault (IST1)"),
         13 => serial_println!("#GP General Protection Fault"),
         14 => {
             serial_println!("#PF Page Fault");
@@ -109,16 +111,18 @@ pub extern "C" fn rust_main(mb2_info: u32) -> ! {
     serial_println!("maizeOS: entered rust_main");
     serial_println!("mb2_info ptr = {:#x}", mb2_info);
 
-    idt::init();
-    serial_println!("IDT loaded (#BP/#UD/#GP/#PF)");
-
-    print("Hello, World");
-
-    serial_println!("Before int3");
-    unsafe {
-        core::arch::asm!("int3");
+    unsafe extern "C" {
+        static stack_top: u8;
     }
-    serial_println!("After int3 (should print now!)");
+
+    let stack_top_addr = unsafe { &stack_top as *const u8 as u64 };
+    gdt::init(stack_top_addr);
+    serial_println!("GDT+TSS loaded (IST1 for #DF)");
+
+    idt::init();
+    serial_println!("IDT loaded (#BP/#UD/#DF/#GP/#PF)");
+
+    print("Welcome to MaizeOS");
 
     loop {
         unsafe {
