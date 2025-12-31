@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod frame_alloc;
 mod gdt;
 mod idt;
 mod mb2;
@@ -113,6 +114,22 @@ pub extern "C" fn rust_main(mb2_info: u32) -> ! {
     serial_println!("mb2_info ptr = {:#x}", mb2_info);
     mb2::dump(mb2_info as usize);
 
+    unsafe extern "C" {
+        static __kernel_start: u8;
+        static __kernel_end: u8;
+    }
+
+    let kstart = unsafe { &__kernel_start as *const u8 as u64 };
+    let kend = unsafe { &__kernel_end as *const u8 as u64 };
+    serial_println!("kernel range: {:#x}..{:#x}", kstart, kend);
+
+    let mut fa = frame_alloc::FrameAllocator::init(mb2_info as u64, kstart, kend)
+        .expect("failed to initialize FrameAllocator");
+
+    for i in 0..10 {
+        let f = fa.alloc_frame().expect("out of frames");
+        serial_println!("alloc_frame[{}] = {:#x}", i, f);
+    }
     unsafe extern "C" {
         static stack_top: u8;
     }

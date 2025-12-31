@@ -15,4 +15,5 @@ cp grub.cfg iso/boot/grub/
 grub2-mkrescue -o maizeOS.iso iso
 
 #run
-# qemu-system-x86_64 -cdrom maizeOS.iso -serial stdio -no-reboot -d int
+# qemu-system-x86_64 -machine q35 -cpu qemu64 -m 256M -cdrom maizeOS.iso -serial stdio  -no-reboot
+

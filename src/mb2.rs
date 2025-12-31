@@ -7,30 +7,68 @@ struct Mb2InfoHeader {
 }
 
 #[repr(C)]
-struct Mb2TagHeader {
-    mb_type: u32,
-    size: u32,
+pub struct Mb2TagHeader {
+    pub mb_type: u32,
+    pub size: u32,
 }
 
 #[repr(C)]
-struct Mb2MmapTag {
-    tag: Mb2TagHeader,
-    entry_size: u32,
-    entry_version: u32,
+pub struct Mb2MmapTag {
+    pub tag: Mb2TagHeader,
+    pub entry_size: u32,
+    pub entry_version: u32,
     //entries
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct Mb2MmapEntry {
-    base_addr: u64,
-    length: u64,
-    entry_type: u32,
-    reserved: u32,
+pub struct Mb2MmapEntry {
+    pub base_addr: u64,
+    pub length: u64,
+    pub entry_type: u32,
+    pub reserved: u32,
 }
 
 fn align_up_8(x: usize) -> usize {
     (x + 7) & !7
+}
+
+pub fn get_mmap_tag(mb2_info_phys: usize) -> Option<&'static Mb2MmapTag> {
+    if mb2_info_phys == 0 {
+        serial_println!("MB2: null pointer");
+        return None;
+    }
+    let info = unsafe { &*(mb2_info_phys as *const Mb2InfoHeader) };
+
+    let start = mb2_info_phys;
+    let end = start + info.total_size as usize;
+
+    let mut p = start + core::mem::size_of::<Mb2InfoHeader>();
+    while p + core::mem::size_of::<Mb2InfoHeader>() <= end {
+        let tag = unsafe { &*(p as *const Mb2TagHeader) };
+
+        if tag.size < 8 {
+            serial_println!("MB2: ERROR tag size < 8 at {:#x}", p);
+            break;
+        }
+
+        if tag.mb_type == 0 && tag.size == 8 {
+            break;
+        }
+
+        if tag.mb_type == 6 {
+            return Some(unsafe { &*(p as *const Mb2MmapTag) });
+        }
+
+        let next = p + align_up_8(tag.size as usize);
+
+        if next <= p {
+            serial_println!("MB2: ERROR tag pointer overflow");
+            break;
+        }
+        p = next;
+    }
+    None
 }
 
 pub fn dump(mb2_info_phys: usize) {
