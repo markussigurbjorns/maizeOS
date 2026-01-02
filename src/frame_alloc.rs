@@ -1,11 +1,9 @@
-use core::u64;
-
 use crate::{
     mb2::{self, Mb2MmapTag},
     serial_println,
 };
 
-const PAGE_SIZE: u64 = 4096;
+pub const PAGE_SIZE: u64 = 4096;
 
 fn align_up(x: u64, a: u64) -> u64 {
     (x + (a - 1)) & !(a - 1)
@@ -16,8 +14,8 @@ fn align_down(x: u64, a: u64) -> u64 {
 }
 
 pub struct FrameAllocator {
-    mmap_ptr: *const mb2::Mb2MmapTag,
-    entries_start: u64,
+    _mmap_ptr: *const mb2::Mb2MmapTag,
+    _entries_start: u64,
     entries_end: u64,
     entry_size: u64,
 
@@ -25,10 +23,11 @@ pub struct FrameAllocator {
     cur_frame: u64,
     cur_region_end: u64,
 
-    kernel_start: u64,
-    kernel_end: u64,
-    mb2_start: u64,
-    mb2_end: u64,
+    _kernel_start: u64,
+    _kernel_end: u64,
+    min_start: u64,
+    _mb2_start: u64,
+    _mb2_end: u64,
 }
 
 impl FrameAllocator {
@@ -49,18 +48,21 @@ impl FrameAllocator {
         let mb2_start = mb2_info_phys;
         let mb2_end = mb2_info_phys + mb2_info_total_size;
 
+        let min_start = align_up(core::cmp::max(kernel_start, mb2_end), PAGE_SIZE);
+
         let mut fa = Self {
-            mmap_ptr: mmap,
-            entries_start,
+            _mmap_ptr: mmap,
+            _entries_start: entries_start,
             entries_end,
             entry_size,
             cur_entry_ptr: entries_start,
             cur_frame: 0,
             cur_region_end: 0,
-            kernel_start,
-            kernel_end,
-            mb2_start,
-            mb2_end,
+            _kernel_start: kernel_start,
+            _kernel_end: kernel_end,
+            min_start,
+            _mb2_start: mb2_start,
+            _mb2_end: mb2_end,
         };
 
         fa.advance_to_next_usable_reagion();
@@ -93,20 +95,6 @@ impl FrameAllocator {
             return true;
         }
 
-        // avoid kernel image
-        if frame >= align_down(self.kernel_start, PAGE_SIZE)
-            && frame < align_up(self.kernel_end, PAGE_SIZE)
-        {
-            return true;
-        }
-
-        // avoid multiboot info blob
-        if frame >= align_down(self.mb2_start, PAGE_SIZE)
-            && frame < align_up(self.mb2_end, PAGE_SIZE)
-        {
-            return true;
-        }
-
         false
     }
 
@@ -129,7 +117,9 @@ impl FrameAllocator {
                 continue;
             }
 
-            let region_start = align_up(base.max(0x0010_0000), PAGE_SIZE);
+            let region_start_tmp = align_up(base.max(0x0010_0000), PAGE_SIZE);
+            let region_start = core::cmp::max(region_start_tmp, self.min_start);
+
             let region_end = align_down(end, PAGE_SIZE);
 
             if region_end <= region_start {

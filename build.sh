@@ -6,7 +6,7 @@ rm -rf iso
 
 #build
 RUSTFLAGS="-C link-arg=-Tlinker.ld" \
-    cargo build --target target.json -Z build-std=core,compiler_builtins -Z build-std-features=compiler-builtins-mem --release
+    cargo build --target target.json -Z build-std=core,alloc,compiler_builtins -Z build-std-features=compiler-builtins-mem --release
 
 #post
 mkdir -p iso/boot/grub
