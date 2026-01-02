@@ -48,7 +48,7 @@ impl FrameAllocator {
         let mb2_start = mb2_info_phys;
         let mb2_end = mb2_info_phys + mb2_info_total_size;
 
-        let min_start = align_up(core::cmp::max(kernel_start, mb2_end), PAGE_SIZE);
+        let min_start = align_up(core::cmp::max(kernel_end, mb2_end), PAGE_SIZE);
 
         let mut fa = Self {
             _mmap_ptr: mmap,
@@ -65,7 +65,7 @@ impl FrameAllocator {
             _mb2_end: mb2_end,
         };
 
-        fa.advance_to_next_usable_reagion();
+        fa.advance_to_next_usable_region();
 
         Some(fa)
     }
@@ -73,7 +73,7 @@ impl FrameAllocator {
     pub fn alloc_frame(&mut self) -> Option<u64> {
         loop {
             if self.cur_frame == 0 || self.cur_frame >= self.cur_region_end {
-                if !self.advance_to_next_usable_reagion() {
+                if !self.advance_to_next_usable_region() {
                     return None;
                 }
             }
@@ -89,7 +89,7 @@ impl FrameAllocator {
         }
     }
 
-    fn frame_is_forbidden(&mut self, frame: u64) -> bool {
+    fn frame_is_forbidden(&self, frame: u64) -> bool {
         // avoid low memory for now (< 1MiB)
         if frame < 0x0010_0000 {
             return true;
@@ -98,7 +98,7 @@ impl FrameAllocator {
         false
     }
 
-    fn advance_to_next_usable_reagion(&mut self) -> bool {
+    fn advance_to_next_usable_region(&mut self) -> bool {
         while self.cur_entry_ptr + self.entry_size <= self.entries_end {
             let ent = unsafe { &*(self.cur_entry_ptr as *const mb2::Mb2MmapEntry) };
 
