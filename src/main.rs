@@ -7,6 +7,7 @@ mod gdt;
 mod heap;
 mod idt;
 mod mb2;
+mod paging;
 mod serial;
 mod sync;
 mod vga_buffer;
@@ -134,27 +135,17 @@ pub extern "C" fn rust_main(mb2_info: u32) -> ! {
         .expect("failed to initialize FrameAllocator");
 
     const HEAP_PAGES: usize = 1024;
-    let mut heap_start: u64 = 0;
+    const HEAP_VIRT_BASE: u64 = 0x4444_0000_0000;
 
     for i in 0..HEAP_PAGES {
-        let f = fa.alloc_frame().expect("out of frames");
-        if i == 0 {
-            heap_start = f;
-        } else {
-            // ensure contiguous (because bump heap assumes a contiguous range)
-            let expected = heap_start + (i as u64) * 4096;
-            if f != expected {
-                panic!(
-                    "heap frames not contiguous: got {:#x}, expected {:#x}",
-                    f, expected
-                );
-            }
-        }
+        let phys = fa.alloc_frame().expect("out of frames for heap");
+        let virt = HEAP_VIRT_BASE + (i as u64) * 4096;
+        paging::map_4k(&mut fa, virt, phys, 1 << 1); // writable
     }
 
     let heap_size = HEAP_PAGES * PAGE_SIZE as usize;
-    heap::init(heap_start as usize, heap_size);
-    serial_println!("heap: start={:#x} size={} bytes", heap_start, heap_size);
+    heap::init(HEAP_VIRT_BASE as usize, heap_size);
+    serial_println!("heap: start={:#x} size={} bytes", HEAP_VIRT_BASE, heap_size);
 
     let mut v = Vec::new();
     for i in 0..16 {
