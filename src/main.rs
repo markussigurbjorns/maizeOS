@@ -136,15 +136,17 @@ pub extern "C" fn rust_main(mb2_info: u32) -> ! {
 
     const HEAP_PAGES: usize = 1024;
     const HEAP_VIRT_BASE: u64 = 0x4444_0000_0000;
+    const _HEAP_GUARD: u64 = HEAP_VIRT_BASE; // unmapped
+    const HEAP_START: u64 = HEAP_VIRT_BASE + 0x1000; // mapped heap begins here
 
     for i in 0..HEAP_PAGES {
         let phys = fa.alloc_frame().expect("out of frames for heap");
-        let virt = HEAP_VIRT_BASE + (i as u64) * 4096;
+        let virt = HEAP_START + (i as u64) * 4096;
         paging::map_4k(&mut fa, virt, phys, 1 << 1); // writable
     }
 
     let heap_size = HEAP_PAGES * PAGE_SIZE as usize;
-    heap::init(HEAP_VIRT_BASE as usize, heap_size);
+    heap::init(HEAP_START as usize, heap_size);
     serial_println!("heap: start={:#x} size={} bytes", HEAP_VIRT_BASE, heap_size);
 
     let mut v = Vec::new();
